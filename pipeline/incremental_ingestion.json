@@ -6,8 +6,6 @@
 				"name": "AzureSQL2Lake",
 				"description": "Moving data from Azure SQL Dababase to Azure ADLS Gen 2",
 				"type": "Copy",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "FetchLastUpDate",
@@ -71,7 +69,10 @@
 						"type": "DatasetReference",
 						"parameters": {
 							"container": "bronze-end2end",
-							"folder": "default",
+							"folder": {
+								"value": "@pipeline().parameters.table",
+								"type": "Expression"
+							},
 							"file": {
 								"value": "@concat(pipeline().parameters.table,'_',variables('current_timestamp'))",
 								"type": "Expression"
@@ -83,8 +84,6 @@
 			{
 				"name": "FetchLastUpDate",
 				"type": "Lookup",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
@@ -121,8 +120,6 @@
 			{
 				"name": "FetchCurrentStamp",
 				"type": "SetVariable",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [],
 				"policy": {
 					"secureOutput": false,
@@ -138,7 +135,7 @@
 				}
 			},
 			{
-				"name": "IncrementalData",
+				"name": "IfNewData",
 				"type": "IfCondition",
 				"dependsOn": [
 					{
@@ -150,6 +147,48 @@
 				],
 				"userProperties": [],
 				"typeProperties": {
+					"expression": {
+						"value": "@greater(activity('AzureSQL2Lake').output.dataRead, 0)",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "DeleteTempFile",
+							"type": "Delete",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataset": {
+									"referenceName": "parquet_file",
+									"type": "DatasetReference",
+									"parameters": {
+										"container": "bronze-end2end",
+										"folder": {
+											"value": "@pipeline().parameters.table",
+											"type": "Expression"
+										},
+										"file": {
+											"value": "@concat(pipeline().parameters.table,'_',variables('current_timestamp'))",
+											"type": "Expression"
+										}
+									}
+								},
+								"enableLogging": false,
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								}
+							}
+						}
+					],
 					"ifTrueActivities": [
 						{
 							"name": "ModifyLastUpDate",
