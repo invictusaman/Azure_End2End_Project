@@ -32,7 +32,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "Select * \nfrom @{pipeline().parameters.schema}.@{pipeline().parameters.table}\nWhere @{pipeline().parameters.CDC_col} > \n'@{activity('FetchLastUpDate').output.value[0].cdc}'",
+							"value": "Select * \nfrom @{pipeline().parameters.schema}.@{pipeline().parameters.table}\nWhere @{pipeline().parameters.CDC_col} > \n'@{if(empty(pipeline().parameters.back_date),\nactivity('FetchLastUpDate').output.value[0].cdc,\npipeline().parameters.back_date)}'",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
@@ -305,6 +305,9 @@
 				"type": "string"
 			},
 			"CDC_col": {
+				"type": "string"
+			},
+			"back_date": {
 				"type": "string"
 			}
 		},
