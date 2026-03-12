@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Azure End-to-End Pipeline · Aman Bhattarai</title>
+        <meta
+            name="description"
+            content="Production-style Azure data pipeline — SQL Server to ADLS Gen2 via Medallion Architecture using ADF, Databricks, Delta Live Tables and Unity Catalog."
+        />
+        <style>
+            @import url("https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap");
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                background: #f0f4f8;
+                display: flex;
+                justify-content: center;
+                min-height: 100vh;
+                font-family: "DM Sans", sans-serif;
+                padding: 48px 24px 64px;
+            }
+
+            .wrapper {
+                width: 100%;
+                max-width: 1100px;
+            }
+
+            /* ── TOP NAV ────────────────────────────── */
+            .topnav {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 48px;
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+            .topnav-left {
+                font-family: "Space Mono", monospace;
+                font-size: 10px;
+                letter-spacing: 3px;
+                text-transform: uppercase;
+                color: #94a3b8;
+            }
+            .topnav-left span {
+                color: #1d4ed8;
+            }
+            .github-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                background: #0f172a;
+                color: #f8fafc;
+                font-family: "DM Sans", sans-serif;
+                font-size: 13px;
+                font-weight: 600;
+                padding: 9px 18px;
+                border-radius: 8px;
+                text-decoration: none;
+                transition:
+                    background 0.2s,
+                    transform 0.2s;
+                border: none;
+                cursor: pointer;
+            }
+            .github-btn:hover {
+                background: #1e293b;
+                transform: translateY(-1px);
+            }
+            .github-btn svg {
+                flex-shrink: 0;
+            }
+
+            /* ── HEADER ─────────────────────────────── */
+            .header {
+                text-align: center;
+                margin-bottom: 52px;
+            }
+            .eyebrow {
+                font-family: "Space Mono", monospace;
+                font-size: 11px;
+                letter-spacing: 4px;
+                text-transform: uppercase;
+                color: #1d4ed8;
+                margin-bottom: 14px;
+            }
+            .header h1 {
+                font-size: clamp(24px, 3.5vw, 36px);
+                font-weight: 700;
+                color: #0f172a;
+                letter-spacing: -0.5px;
+                line-height: 1.2;
+            }
+            .header h1 span {
+                color: #1d4ed8;
+            }
+            .header p {
+                margin-top: 12px;
+                font-size: 14px;
+                color: #475569;
+            }
+
+            /* ── TOP SECTION ────────────────────────── */
+            .top-section {
+                display: grid;
+                grid-template-columns: 1fr 80px 1fr 80px 1fr;
+                margin-bottom: 0;
+            }
+            .bronze-col-top {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            /* ── SOURCE CARD ────────────────────────── */
+            .source-card {
+                width: 100%;
+                background: #ffffff;
+                border: 2px solid #94a3b8;
+                border-radius: 16px;
+                padding: 20px 24px;
+                text-align: center;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+                transition:
+                    box-shadow 0.25s,
+                    transform 0.25s;
+            }
+            .source-card:hover {
+                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.11);
+                transform: translateY(-2px);
+            }
+            .source-badge {
+                display: inline-block;
+                font-family: "Space Mono", monospace;
+                font-size: 10px;
+                letter-spacing: 2.5px;
+                text-transform: uppercase;
+                color: #334155;
+                background: #f1f5f9;
+                border: 1px solid #94a3b8;
+                border-radius: 20px;
+                padding: 4px 12px;
+                margin-bottom: 10px;
+            }
+            .source-title {
+                font-size: 19px;
+                font-weight: 700;
+                color: #0f172a;
+                margin-bottom: 4px;
+            }
+            .source-sub {
+                font-family: "Space Mono", monospace;
+                font-size: 10.5px;
+                color: #64748b;
+                margin-bottom: 12px;
+            }
+            .source-tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+                justify-content: center;
+            }
+            .source-tag {
+                font-size: 12px;
+                font-weight: 500;
+                padding: 4px 12px;
+                border-radius: 20px;
+                background: #f1f5f9;
+                color: #334155;
+                border: 1px solid #94a3b8;
+            }
+
+            /* ── DOWN ARROW ─────────────────────────── */
+            .down-arrow {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0;
+                padding: 2px 0;
+            }
+            .da-line {
+                width: 2px;
+                height: 22px;
+                background: linear-gradient(to bottom, #93c5fd, #1d4ed8);
+            }
+            .da-line-bot {
+                width: 2px;
+                height: 22px;
+                background: linear-gradient(to bottom, #1d4ed8, #93c5fd);
+            }
+            .da-pill {
+                font-family: "Space Mono", monospace;
+                font-size: 9px;
+                letter-spacing: 1.5px;
+                text-transform: uppercase;
+                color: #1d4ed8;
+                background: #eff6ff;
+                border: 1.5px solid #93c5fd;
+                border-radius: 4px;
+                padding: 4px 12px;
+                white-space: nowrap;
+            }
+            .da-head {
+                width: 0;
+                height: 0;
+                border-left: 6px solid transparent;
+                border-right: 6px solid transparent;
+                border-top: 9px solid #1d4ed8;
+                margin-top: -1px;
+            }
+
+            /* ── MEDALLION ROW ──────────────────────── */
+            .medallion-row {
+                display: grid;
+                grid-template-columns: 1fr 80px 1fr 80px 1fr;
+                align-items: start;
+                gap: 0;
+            }
+
+            /* ── H CONNECTOR ────────────────────────── */
+            .h-conn {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding-top: 58px;
+                gap: 6px;
+                min-width: 80px;
+            }
+            .h-arrow {
+                display: flex;
+                align-items: center;
+                width: 100%;
+            }
+            .h-line {
+                flex: 1;
+                height: 2px;
+                background: #1d4ed8;
+            }
+            .h-head {
+                width: 0;
+                height: 0;
+                border-top: 6px solid transparent;
+                border-bottom: 6px solid transparent;
+                border-left: 10px solid #1d4ed8;
+            }
+            .h-label {
+                font-family: "Space Mono", monospace;
+                font-size: 8.5px;
+                letter-spacing: 1px;
+                text-transform: uppercase;
+                color: #1d4ed8;
+                text-align: center;
+                line-height: 1.5;
+            }
+
+            /* ── STAGE CARD ─────────────────────────── */
+            .stage {
+                border-radius: 16px;
+                padding: 22px 22px 20px;
+                border: 2px solid #e2e8f0;
+                background: #ffffff;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+                transition:
+                    box-shadow 0.25s,
+                    transform 0.25s;
+            }
+            .stage:hover {
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+                transform: translateY(-2px);
+            }
+            .stage-label {
+                font-family: "Space Mono", monospace;
+                font-size: 10px;
+                letter-spacing: 2.5px;
+                text-transform: uppercase;
+                margin-bottom: 10px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-weight: 700;
+            }
+            .stage-label::before {
+                content: "";
+                width: 7px;
+                height: 7px;
+                border-radius: 50%;
+                background: currentColor;
+                flex-shrink: 0;
+            }
+            .stage-title {
+                font-size: 18px;
+                font-weight: 700;
+                margin-bottom: 5px;
+            }
+            .stage-sub {
+                font-family: "Space Mono", monospace;
+                font-size: 10.5px;
+                color: #64748b;
+                margin-bottom: 16px;
+            }
+            .tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+            .tag {
+                font-size: 11.5px;
+                font-weight: 500;
+                padding: 5px 11px;
+                border-radius: 20px;
+                border: 1.5px solid transparent;
+            }
+
+            /* WCAG layer colours */
+            .bronze {
+                border-color: #fdba74;
+                background: #fff7ed;
+            }
+            .bronze .stage-label {
+                color: #9a3412;
+            }
+            .bronze .stage-title {
+                color: #7c2d12;
+            }
+            .bronze .tag {
+                background: #ffedd5;
+                color: #7c2d12;
+                border-color: #fb923c;
+            }
+
+            .silver {
+                border-color: #93c5fd;
+                background: #eff6ff;
+            }
+            .silver .stage-label {
+                color: #1e40af;
+            }
+            .silver .stage-title {
+                color: #1e3a8a;
+            }
+            .silver .tag {
+                background: #dbeafe;
+                color: #1e3a8a;
+                border-color: #60a5fa;
+            }
+
+            .gold {
+                border-color: #fcd34d;
+                background: #fffbeb;
+            }
+            .gold .stage-label {
+                color: #92400e;
+            }
+            .gold .stage-title {
+                color: #78350f;
+            }
+            .gold .tag {
+                background: #fef3c7;
+                color: #78350f;
+                border-color: #f59e0b;
+            }
+
+            /* ── TECHNIQUES ─────────────────────────── */
+            .learned {
+                margin-top: 52px;
+                border-top: 2px solid #e2e8f0;
+                padding-top: 36px;
+            }
+            .section-eyebrow {
+                font-family: "Space Mono", monospace;
+                font-size: 10px;
+                letter-spacing: 4px;
+                text-transform: uppercase;
+                color: #1d4ed8;
+                text-align: center;
+                margin-bottom: 24px;
+            }
+            .learned-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+                gap: 14px;
+            }
+            .lc {
+                background: #ffffff;
+                border: 1.5px solid #e2e8f0;
+                border-radius: 14px;
+                padding: 18px;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+                transition:
+                    box-shadow 0.25s,
+                    transform 0.25s;
+            }
+            .lc:hover {
+                box-shadow: 0 5px 18px rgba(0, 0, 0, 0.09);
+                transform: translateY(-2px);
+            }
+            .lc-icon {
+                font-size: 20px;
+                margin-bottom: 9px;
+            }
+            .lc-title {
+                font-size: 13px;
+                font-weight: 700;
+                color: #0f172a;
+                margin-bottom: 5px;
+            }
+            .lc-desc {
+                font-size: 11.5px;
+                color: #475569;
+                line-height: 1.6;
+            }
+
+            /* ── FOOTER ─────────────────────────────── */
+            .footer {
+                margin-top: 40px;
+                text-align: center;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 16px;
+            }
+            .footer-links {
+                display: flex;
+                gap: 16px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .footer-link {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                font-family: "DM Sans", sans-serif;
+                font-size: 13px;
+                font-weight: 600;
+                color: #1d4ed8;
+                text-decoration: none;
+                padding: 8px 16px;
+                border: 1.5px solid #bfdbfe;
+                border-radius: 8px;
+                background: #eff6ff;
+                transition:
+                    background 0.2s,
+                    border-color 0.2s,
+                    transform 0.2s;
+            }
+            .footer-link:hover {
+                background: #dbeafe;
+                border-color: #93c5fd;
+                transform: translateY(-1px);
+            }
+            .footer-copy {
+                font-family: "Space Mono", monospace;
+                font-size: 10px;
+                letter-spacing: 2.5px;
+                text-transform: uppercase;
+                color: #94a3b8;
+            }
+
+            @media (max-width: 700px) {
+                .top-section,
+                .medallion-row {
+                    grid-template-columns: 1fr;
+                }
+                .h-conn {
+                    display: none;
+                }
+                .stage {
+                    margin-bottom: 12px;
+                }
+                .topnav {
+                    justify-content: center;
+                    text-align: center;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="wrapper">
+            <!-- TOP NAV -->
+            <div class="topnav">
+                <div class="topnav-left">
+                    <span>Aman Bhattarai</span> &nbsp;·&nbsp; Data Engineering
+                    Portfolio
+                </div>
+                <a
+                    class="github-btn"
+                    href="https://github.com/invictusaman/Azure_End2End_Project"
+                    target="_blank"
+                    rel="noopener"
+                >
+                    <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                    >
+                        <path
+                            d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"
+                        />
+                    </svg>
+                    View on GitHub
+                </a>
+            </div>
+
+            <!-- HEADER -->
+            <div class="header">
+                <div class="eyebrow">
+                    Azure Data Engineering · End-to-End Pipeline
+                </div>
+                <h1>
+                    SQL Server → ADLS Gen2 via
+                    <span>Medallion Architecture</span>
+                </h1>
+                <p>
+                    Azure Data Factory &nbsp;·&nbsp; Databricks &nbsp;·&nbsp;
+                    Delta Live Tables &nbsp;·&nbsp; Unity Catalog
+                </p>
+            </div>
+
+            <!-- SOURCE above Bronze -->
+            <div class="top-section">
+                <div class="bronze-col-top">
+                    <div class="source-card">
+                        <div class="source-badge">⬡ Data Source</div>
+                        <div class="source-title">Azure SQL Server</div>
+                        <div class="source-sub">Relational OLTP database</div>
+                        <div class="source-tags">
+                            <span class="source-tag">Dimension Tables</span>
+                            <span class="source-tag">Fact Tables</span>
+                        </div>
+                    </div>
+                    <div class="down-arrow">
+                        <div class="da-line"></div>
+                        <div class="da-pill">ADF · CDC Incremental</div>
+                        <div class="da-line-bot"></div>
+                        <div class="da-head"></div>
+                    </div>
+                </div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+            </div>
+
+            <!-- MEDALLION: Bronze → Silver → Gold -->
+            <div class="medallion-row">
+                <div class="stage bronze">
+                    <div class="stage-label">Bronze Layer</div>
+                    <div class="stage-title">Raw Ingestion</div>
+                    <div class="stage-sub">ADLS Gen2 · Parquet</div>
+                    <div class="tags">
+                        <span class="tag">ForEach Activity</span>
+                        <span class="tag">Watermark-based CDC</span>
+                        <span class="tag">JSON State Management</span>
+                        <span class="tag">Incremental Copy</span>
+                        <span class="tag">Full Reload Reset</span>
+                    </div>
+                </div>
+
+                <div class="h-conn">
+                    <div class="h-arrow">
+                        <div class="h-line"></div>
+                        <div class="h-head"></div>
+                    </div>
+                    <div class="h-label">Auto Loader<br />cloudFiles</div>
+                </div>
+
+                <div class="stage silver">
+                    <div class="stage-label">Silver Layer</div>
+                    <div class="stage-title">Stream Processing</div>
+                    <div class="stage-sub">ADLS Gen2 · Delta Tables</div>
+                    <div class="tags">
+                        <span class="tag">Structured Streaming</span>
+                        <span class="tag">cloudFiles</span>
+                        <span class="tag">Read / Write Checkpoints</span>
+                        <span class="tag">trigger(once=True)</span>
+                        <span class="tag">Delta Lake</span>
+                        <span class="tag">Unity Catalog</span>
+                    </div>
+                </div>
+
+                <div class="h-conn">
+                    <div class="h-arrow">
+                        <div class="h-line"></div>
+                        <div class="h-head"></div>
+                    </div>
+                    <div class="h-label">DLT Pipeline<br />CDC Auto Flow</div>
+                </div>
+
+                <div class="stage gold">
+                    <div class="stage-label">Gold Layer</div>
+                    <div class="stage-title">Analytics Layer</div>
+                    <div class="stage-sub">ADLS Gen2 · Delta Tables</div>
+                    <div class="tags">
+                        <span class="tag">Delta Live Tables</span>
+                        <span class="tag">dlt.create_auto_cdc_flow()</span>
+                        <span class="tag">SCD Type 2</span>
+                        <span class="tag">SCD Type 1</span>
+                        <span class="tag">DLT Expectations</span>
+                        <span class="tag">Data Quality Checks</span>
+                        <span class="tag">Jinja Templating</span>
+                        <span class="tag">Dynamic SQL</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TECHNIQUES -->
+            <div class="learned">
+                <div class="section-eyebrow">
+                    Techniques &amp; Concepts Applied
+                </div>
+                <div class="learned-grid">
+                    <div class="lc">
+                        <div class="lc-icon">⚡</div>
+                        <div class="lc-title">Watermark-based CDC</div>
+                        <div class="lc-desc">
+                            JSON state files track lastLoadTime per table — only
+                            modified rows copied each run
+                        </div>
+                    </div>
+
+                    <div class="lc">
+                        <div class="lc-icon">🌊</div>
+                        <div class="lc-title">Structured Streaming</div>
+                        <div class="lc-desc">
+                            Auto Loader with isolated read/write checkpoints for
+                            fault-tolerant exactly-once delivery
+                        </div>
+                    </div>
+
+                    <div class="lc">
+                        <div class="lc-icon">🔺</div>
+                        <div class="lc-title">Delta Lake</div>
+                        <div class="lc-desc">
+                            ACID-compliant managed tables in Unity Catalog
+                            across Silver and Gold layers
+                        </div>
+                    </div>
+
+                    <div class="lc">
+                        <div class="lc-icon">✅</div>
+                        <div class="lc-title">DLT Expectations</div>
+                        <div class="lc-desc">
+                            Declarative data quality rules enforced at staging —
+                            invalid records dropped before Gold
+                        </div>
+                    </div>
+
+                    <div class="lc">
+                        <div class="lc-icon">🔄</div>
+                        <div class="lc-title">SCD Type 2</div>
+                        <div class="lc-desc">
+                            Full change history on dimensions tracked via
+                            __START_AT / __END_AT metadata
+                        </div>
+                    </div>
+
+                    <div class="lc">
+                        <div class="lc-icon">🧬</div>
+                        <div class="lc-title">Delta Live Tables</div>
+                        <div class="lc-desc">
+                            dlt.create_auto_cdc_flow() for declarative
+                            CDC-driven MERGE pipeline management
+                        </div>
+                    </div>
+
+                    <div class="lc">
+                        <div class="lc-icon">📦</div>
+                        <div class="lc-title">Databricks Asset Bundle</div>
+                        <div class="lc-desc">
+                            Dev / prod deployment targets with source-linked
+                            workspace deployment via YAML config
+                        </div>
+                    </div>
+
+                    <div class="lc">
+                        <div class="lc-icon">🧩</div>
+                        <div class="lc-title">Jinja Templating</div>
+                        <div class="lc-desc">
+                            Dynamic multi-table SQL JOIN generation at runtime —
+                            no hardcoded query logic
+                        </div>
+                    </div>
+
+                    <div class="lc">
+                        <div class="lc-icon">🔐</div>
+                        <div class="lc-title">Access Connector</div>
+                        <div class="lc-desc">
+                            Credential-free identity-based auth between
+                            Databricks and ADLS Gen2
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FOOTER -->
+            <div class="footer">
+                <div class="footer-links">
+                    <a
+                        class="footer-link"
+                        href="https://github.com/invictusaman/Azure_End2End_Project"
+                        target="_blank"
+                        rel="noopener"
+                    >
+                        <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                        >
+                            <path
+                                d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"
+                            />
+                        </svg>
+                        View Source on GitHub
+                    </a>
+                    <a
+                        class="footer-link"
+                        href="https://github.com/invictusaman"
+                        target="_blank"
+                        rel="noopener"
+                    >
+                        <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <path
+                                d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
+                            />
+                            <circle cx="12" cy="7" r="4" />
+                        </svg>
+                        GitHub Profile
+                    </a>
+                </div>
+                <div class="footer-copy">
+                    Aman Bhattarai &nbsp;·&nbsp; Azure End-to-End Data
+                    Engineering
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

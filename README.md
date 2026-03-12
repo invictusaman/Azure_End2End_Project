@@ -2,6 +2,8 @@
 
 Designed and implemented a production-style data pipeline on Microsoft Azure — ingesting data from **Azure SQL Server** into **ADLS Gen2** and processing it through a **Medallion Architecture (Bronze → Silver → Gold)** using **Azure Data Factory** and **Azure Databricks**.
 
+> 🌐 **[View Live Architecture Diagram](https://invictusaman.github.io/Azure_End2End_Project/)**
+
 ---
 
 ## Architecture
@@ -47,9 +49,10 @@ azure-end2end-project/
 │   ├── jinja/               ← Jinja-templated dynamic SQL notebook
 │   └── resources/           ← DLT pipeline YAML definition
 ├── docs/
-│   └── architecture.md
+│   ├── architecture.md
+│   └── index.html
 └── screenshots/
-    └── azure-resource-group.png
+    └── azure-resource-group.jpeg
 ```
 
 ---
